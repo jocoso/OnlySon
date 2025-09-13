@@ -1,171 +1,220 @@
-import sys
-import os
+# Helper Functions
 
-from api.worldobject import WorldObject
-from api.charactertype import CharacterType
-from api.signaler import Signaler
-from api.player import Player
+def format_list(items):
+    """
+    Formats a list of objects as a cohesive, comma-separated string.
+    Example: ['apple', 'banana', 'cherry'] -> 'apple, banana, cherry'
+    """
+    return ", ".join(str(item) for item in items)
 
-caret = '>'
-running = True
-user = None
 
-witch = CharacterType("witch", 100, 1150, 100)
-demon = CharacterType("demon", 275, 900, 175)
-vampire = CharacterType("vampire", 200, 1000, 150)
-
-def listformatter(object_array):
-    for i, obj in enumerate(object_array):
-        print(f"{i + 1} - {obj.core.ign}")
-    print(f"{len(object_array) + 1} - Leave")
-
-def stringformatter(string_array):
-    for i, string in enumerate(string_array):
-        print(f"{i + 1} - {string}")
-
-def clicksimulator(range_min, range_max, error=None, caret="> "):
+def get_choice(range_min, range_max, error_msg="You can't pick this option.", caret="> "):
+    """
+    Prompts user for input within a specified range and returns the selected option as an integer.
+    """
     while True:
         try:
             choice = int(input(caret))
-            if choice < range_min or choice > range_max:
-                print(error or "You can't pick this option.")
-            else:
+            if range_min <= choice <= range_max:
                 return choice
+            print(error_msg)
         except ValueError:
-            print("Please enter a valid number")
+            print("Please enter a valid number.")
 
-# Decorators for game object actions
-def examinable(generic_message):
-    def decorator(cls):
-        def examine(self, instance_message=None):
-            if instance_message:
-                print(instance_message)
-            else:
-                print(generic_message)
-        cls.examine = examine
-        return cls
-    return decorator
 
-def openable(prompt="Item"):
-    def decorator(cls):
-        cls.has_open = True
-        def open_method(self, player, takeable_items):
-            print(f"Inside of {prompt} you can see:")
-            if takeable_items:
-                listformatter(takeable_items)
-                print("What would you like to take?")
-                pick = clicksimulator(1, len(takeable_items) + 1, "You can't take that.")
-                if pick <= len(takeable_items):
-                    inventory = player.get_attribute("inventory")
-                    item_taken = takeable_items[pick - 1]
-                    print(f"You took {item_taken.core.ign}")
-                    inventory.append(item_taken)
-                    del takeable_items[pick - 1]
-                    player.set_attribute("inventory", inventory)
-            else:
-                print("There is nothing inside.")
-        setattr(cls, "open", open_method)
-        return cls
-    return decorator
+# Simple replacements for missing stringformatter and clicksimulator
 
-def readable(prompt):
-    def decorator(cls):
-        def read(self, player):
-            print(f"{player.core.ign} reads the note:")
-            print("===\n" + prompt + "\n===")
-        cls.read = read
-        return cls
-    return decorator
+def stringformatter(options):
+    """
+    Displays numbered option list to the player.
+    """
+    for idx, option in enumerate(options, start=1):
+        print(f"{idx}. {option}")
 
-def dialogueformatter(player, message):
-    print(f"{player.core.ign}: {message}")
 
-@examinable("A weary note so old you fear it may crumble if you do so much as touch it")
-@readable("Don't let them know who you are. "
-          "They are civilized and you are a monster; "
-          "they will kill you without mercy. "
-          "Such are the ways of the civilized.")
-class Note: 
-    def __init__(self):
-        self.core = WorldObject("A Weary Note")
+def clicksimulator(min_choice, max_choice, error_msg="Invalid choice."):
+    """
+    Simulated input choice with validation.
+    """
+    return get_choice(min_choice, max_choice, error_msg)
+
+
+# Actionables
 
 class Openable:
+    """
+    Adds the ability for an object to 'open' and allows items to be retrieved.
+    """
     def __init__(self, takeable_items):
         self.takeable_items = takeable_items
-    def open(self, player, obj_name):
-        print(f"Inside of {obj_name} you can see:")
+
+    def exec(self, player, obj_name):
+        print(f"Inside {obj_name}, you can see:")
         if self.takeable_items:
-            listformatter(self.takeable_items)
+            stringformatter(self.takeable_items)
             print("What would you like to take?")
-            pick = clicksimulator(1, len(self.takeable_items) + 1, "You can't take that.")
-            if pick <= len(self.takeable_items):
-                item_taken = self.takeable_items[pick - 1]
-                print(f"You took {item_taken.core.ign}")
-                inventory = player.get_attribute("inventory")
+            pick = get_choice(1, len(self.takeable_items), "You can't take that.")
+            if 1 <= pick <= len(self.takeable_items):
+                item_taken = self.takeable_items.pop(pick - 1)
+                # Use id or str representation for display
+                item_name = getattr(item_taken.core, 'id', str(item_taken))
+                print(f"You took {item_name}")
+                inventory = player.get_inventory()
                 inventory.append(item_taken)
-                del self.takeable_items[pick - 1]
-                player.set_attribute("inventory", inventory)
+                player.set_inventory(inventory)
+                return item_taken
         else:
             print("There is nothing inside.")
+        return None
+
 
 class Examinable:
+    """
+    Adds the ability for an object to be examined and display a descriptive message.
+    """
     def __init__(self, message):
         self.message = message
-    def examine(self, params=None):
+
+    def exec(self):
         print(self.message)
 
-class GameObject:
-    def __init__(self, core, actionables):
-        self.core = core
-        self.actionables = actionables
-    def get_id(self):
-        return self.core.ign
-    def action(self, name, params=None):
-        if name in self.actionables and callable(self.actionables[name]):
-            self.actionables[name](params)
 
-@examinable("The bed looks soft and alluring.")
+class Signaler:
+    """
+    A class to represent a boolean signal.
+    """
+    def __init__(self, sign=False):
+        self.sign = sign
+
+    def set_signaler(self, sign):
+        self.sign = sign
+
+    def get_signal(self):
+        return self.sign
+
+    # Provide property next to match usage
+    @property
+    def next(self):
+        return self.sign
+
+    @next.setter
+    def next(self, value):
+        self.sign = value
+
+
+class GameObject:
+    """
+    Basic GameObject which can execute named actionable (Openable, Examinable, etc.)
+    """
+    def __init__(self, obj_id, actionables=None):
+        self.id = obj_id
+        self.actionables = actionables or {}
+
+    def get_id(self):
+        return self.id
+
+    def execute_actionable(self, name, *params):
+        actionable = self.actionables.get(name)
+        if actionable and callable(getattr(actionable, "exec", None)):
+            return actionable.exec(*params)
+
+
+class Storageable:
+    def __init__(self, inventory=None):
+        if inventory is None:
+            inventory = []
+        self.inventory = inventory
+
+    def get_inventory(self):
+        return self.inventory
+
+    def set_inventory(self, new_inventory):
+        self.inventory = new_inventory
+
+
+class Player:
+    def __init__(self, obj_id, init_items=None):
+        if init_items is None:
+            init_items = []
+        examinable = Examinable("A Test Player")
+        self.core = GameObject(obj_id, actionables={"examine": examinable})
+
+        self.storage = Storageable(init_items)
+
+    def examine(self):
+        self.core.execute_actionable("examine")
+
+    def get_inventory(self):
+        return self.storage.get_inventory()
+
+    def set_inventory(self, new_inventory):
+        self.storage.set_inventory(new_inventory)
+
+    def __str__(self):
+        return f"Player({self.core.get_id()})"
+
+
+class Note:
+    def __init__(self):
+        examine = Examinable("The note is so old you fear looking at it will make it turn to dust.")
+        self.core = GameObject("A Weary Note", actionables={"examine": examine})
+
+    def examine(self):
+        self.core.execute_actionable("examine")
+
+    def __str__(self):
+        return "A Weary Note"
+
+
 class Bed:
     def __init__(self):
-        self.core = WorldObject("A Bed")
+        examine = Examinable("The bed is so cozy you could fall asleep by thinking of it.")
+        self.core = GameObject("A Bed", actionables={"examine": examine})
 
-@examinable("The door is made out of wood.")
+    def examine(self):
+        self.core.execute_actionable("examine")
+
+    def __str__(self):
+        return "A Bed"
+
+
 class Door:
-    def __init__(self, instance_message=None):
-        self.instance_message = instance_message
-        self.core = WorldObject("A Door")
+    def __init__(self, id, message):
+        examine = Examinable(message)
+        self.core = GameObject(id, actionables={"examine": examine})
 
-def next_place(scene, player):
-    global player_placement, running
-    if scene.signaler.next:
-        player_placement += 1
-        if player_placement >= len(places):
-            running = False
-        else:
-            places[player_placement].run(player)
+    def examine(self):
+        self.core.execute_actionable("examine")
+
+    def __str__(self):
+        return self.core.get_id()
+
 
 class Bedroom:
-    def __init__(self, player):
-        self.signaler = Signaler(False)
-        self.core = WorldObject("Bedroom")
-        self.examinable = Examinable("The Desk is Beautiful")
-        self.openable = Openable([Note()])
-        self.desk = GameObject(
-            WorldObject("Desk"),
-            {
-                "examine": self.examinable.examine,
-                "open": lambda player: self.openable.open(player, "Desk")
-            }
-        )
+    def __init__(self, player=None):
+        self.signaler = Signaler()
+        examinable = Examinable("The Desk is Beautiful")
+        openable = Openable([Note()])
+        self.core = GameObject("Bedroom", actionables={"examine": examinable, "open": openable})
+        self.player = player  # Save player reference here for usage in run()
+
+    def examine(self):
+        self.core.execute_actionable("examine")
+
+    def openable(self, player, obj_name):
+        self.core.execute_actionable("open", player, obj_name)
+
     def run(self, player=None):
         if not player:
-            print("ERROR: Scene", self.core.ign, "requires a player instance.")
+            print("ERROR: Scene", getattr(self.core, "id", "Unknown"), "requires a player instance.")
             return
+
         print("It is night when you wake up, surrounded by sweaty cotton sheets.")
         print("The moonlight softly caresses the air that touches only the skin of your legs, leaving the rest drowning in darkness.")
         print("What do you do?")
         stringformatter(["Leave the bed"])
         user_response = clicksimulator(1, 1, "")
+
         while True:
             print("You left your bed. As you do, you consider what could you do next.")
             print("Your eyes have adapted to the darkness and you can see sections")
@@ -173,23 +222,29 @@ class Bedroom:
             print("What do you do next?")
             stringformatter(["Examine the Desk", "Leave the Room"])
             user_response = clicksimulator(1, 2, "")
+
             if user_response == 1:
                 while True:
                     print("You approach the Desk.")
                     print("What do you want to do?")
                     stringformatter(["Open", "Leave"])
                     desk_action = clicksimulator(1, 2, "Not an option.")
+
                     if desk_action == 1:
-                        self.desk.action("open", player)
-                    if desk_action == 2:
+                        self.openable(player, "Desk")
+                    elif desk_action == 2:
                         break
-            if user_response == 2:
+
+            elif user_response == 2:
                 break
-        self.signaler.next = True
+
+        self.signaler.set_signaler(True)
+
 
 class MainMenu:
     def __init__(self):
         self.signaler = Signaler(False)
+
     def run(self, player=None):
         global user, running
         while True:
@@ -211,75 +266,35 @@ class MainMenu:
                 return
             else:
                 print("Invalid selection. Try again.")
-    def create_player(self):
-        while True:
-            player_name = input("Enter your in-game username: ")
-            password = input("Enter your password: ")
-            user_exists = False
-            if os.path.exists("players.txt"):
-                with open("players.txt", "r") as file:
-                    for line in file:
-                        if line.startswith(player_name + " "):
-                            print("User is already taken. Please choose a different username.")
-                            user_exists = True
-                            break
-            if not user_exists:
-                while True:
-                    print("Choose your character type (This choice only affects the skills and stats):")
-                    stringformatter(["Witch", "Demon", "Vampire"])
-                    choice = input("> ")
-                    if choice == "1":
-                        player = Player(WorldObject(player_name), witch, password)
-                        break
-                    elif choice == "2":
-                        player = Player(WorldObject(player_name), demon, password)
-                        break
-                    elif choice == "3":
-                        player = Player(WorldObject(player_name), vampire, password)
-                        break
-                    else:
-                        print("Invalid choice, try again.")
-                with open("players.txt", "a") as f:
-                    f.write(
-                        f"{player.core.ign} "
-                        f"{player.password} "
-                        f"{player.character_type.name} "
-                        f"{player.character_type.attack} "
-                        f"{player.character_type.health} "
-                        f"{player.character_type.defense} "
-                        f"{player.core.get_attribute('level')} "
-                        f"{player.core.get_attribute('xp')}\n"
-                    )
-                    print("User created successfully!")
-                return player
-    def login(self):
-        max_fields = 8
-        while True:
-            username = input("Enter your username: ")
-            password = input("Enter your password: ")
-            player_found = False
-            user = None  
-            if not os.path.exists("players.txt"):
-                print("No users found. Please create one first.")
-                return None
-            with open("players.txt", "r") as file:
-                for line in file:
-                    fields = line.split()
-                    if len(fields) == max_fields:
-                        stored_username, stored_password = fields[0], fields[1]
-                        if username == stored_username and password == stored_password:
-                            character_type = CharacterType(fields[2], int(fields[3]), int(fields[4]), int(fields[5]))
-                            player = Player(WorldObject(stored_username), character_type, stored_password)
-                            player.level = int(fields[6])
-                            player.xp = int(fields[7])
-                            player_found = True
-                            return player
-            if not player_found:
-                print("Invalid username or password. Please try again.")
 
+    def create_player(self):
+        print("Create a new player")
+        while True:
+            player_id = input("Enter your player name: ").strip()
+            if player_id:
+                new_player = Player(player_id, init_items=[])
+                print(f"Player '{player_id}' created successfully.")
+                return new_player
+            else:
+                print("Player name cannot be empty. Please enter a valid name.")
+
+    def login(self):
+        print("Login")
+        while True:
+            player_id = input("Enter your player name: ").strip()
+            if player_id:
+                existing_player = Player(player_id, init_items=[])
+                print(f"Welcome back, {player_id}.")
+                return existing_player
+            else:
+                print("Player name cannot be empty. Please enter a valid name.")
+
+
+# Global variables and game loop setup
 player_placement = 0
-places = [MainMenu(), Bedroom(None)]
-current_scene = None
+user = None
+running = True
+places = [MainMenu(), Bedroom()]
 
 while running:
     current_scene = places[player_placement]

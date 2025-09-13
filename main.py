@@ -1,5 +1,6 @@
 # Helper Functions
 
+
 def format_list(items):
     """
     Formats a list of objects as a cohesive, comma-separated string.
@@ -8,7 +9,9 @@ def format_list(items):
     return ", ".join(str(item) for item in items)
 
 
-def get_choice(range_min, range_max, error_msg="You can't pick this option.", caret="> "):
+def get_choice(
+    range_min, range_max, error_msg="You can't pick this option.", caret="> "
+):
     """
     Prompts user for input within a specified range and returns the selected option as an integer.
     """
@@ -23,6 +26,7 @@ def get_choice(range_min, range_max, error_msg="You can't pick this option.", ca
 
 
 # Simple replacements for missing stringformatter and clicksimulator
+
 
 def stringformatter(options):
     """
@@ -41,10 +45,12 @@ def clicksimulator(min_choice, max_choice, error_msg="Invalid choice."):
 
 # Actionables
 
+
 class Openable:
     """
     Adds the ability for an object to 'open' and allows items to be retrieved.
     """
+
     def __init__(self, takeable_items):
         self.takeable_items = takeable_items
 
@@ -57,7 +63,7 @@ class Openable:
             if 1 <= pick <= len(self.takeable_items):
                 item_taken = self.takeable_items.pop(pick - 1)
                 # Use id or str representation for display
-                item_name = getattr(item_taken.core, 'id', str(item_taken))
+                item_name = getattr(item_taken.core, "id", str(item_taken))
                 print(f"You took {item_name}")
                 inventory = player.get_inventory()
                 inventory.append(item_taken)
@@ -72,8 +78,12 @@ class Examinable:
     """
     Adds the ability for an object to be examined and display a descriptive message.
     """
+
     def __init__(self, message):
         self.message = message
+
+    def set_message(self, new_message):
+        self.message = new_message
 
     def exec(self):
         print(self.message)
@@ -83,6 +93,7 @@ class Signaler:
     """
     A class to represent a boolean signal.
     """
+
     def __init__(self, sign=False):
         self.sign = sign
 
@@ -104,19 +115,63 @@ class Signaler:
 
 class GameObject:
     """
-    Basic GameObject which can execute named actionable (Openable, Examinable, etc.)
+    Basic game object capable of executing named actionables such as Openable and Examinable.
+
+    Attributes:
+        id (str): Unique identifier for the game object.
+        actionables (dict): Dictionary mapping action names to actionable objects.
+
+    Methods:
+        get_id(): Returns the unique ID of the game object.
+        execute_actionable(name, *params): Executes the specified actionable if available.
+        has_actionable(name): Checks if the given actionable is available.
     """
+
     def __init__(self, obj_id, actionables=None):
         self.id = obj_id
         self.actionables = actionables or {}
 
     def get_id(self):
+        """Return the unique ID of the game object."""
         return self.id
 
     def execute_actionable(self, name, *params):
+        """
+        Execute the named actionable if it exists and has an exec method.
+
+        Args:
+            name (str): Name of the actionable to execute.
+            *params: Parameters to pass to the actionable's exec method.
+
+        Returns:
+            Any: The return value of the actionable's exec method, if called.
+        """
         actionable = self.actionables.get(name)
         if actionable and callable(getattr(actionable, "exec", None)):
             return actionable.exec(*params)
+
+    def get_actionable(self, name):
+        """
+        Retrieve an actionable object by its name.
+        Args:
+            name (str): The name of the actionable.
+
+        Returns:
+            The actionable object if found, else None.
+        """
+        return self.actionables.get(name)
+
+    def has_actionable(self, name):
+        """
+        Check if the game object has the specified actionable.
+
+        Args:
+            name (str): Name of the actionable.
+
+        Returns:
+            bool: True if the actionable exists, False otherwise.
+        """
+        return name in self.actionables
 
 
 class Storageable:
@@ -156,7 +211,9 @@ class Player:
 
 class Note:
     def __init__(self):
-        examine = Examinable("The note is so old you fear looking at it will make it turn to dust.")
+        examine = Examinable(
+            "The note is so old you fear looking at it will make it turn to dust."
+        )
         self.core = GameObject("A Weary Note", actionables={"examine": examine})
 
     def examine(self):
@@ -166,10 +223,13 @@ class Note:
         return "A Weary Note"
 
 
-class Bed:
+class Statue:
     def __init__(self):
-        examine = Examinable("The bed is so cozy you could fall asleep by thinking of it.")
-        self.core = GameObject("A Bed", actionables={"examine": examine})
+        examine = Examinable("The ivory statues loom over you with impassive faces.")
+        self.core = GameObject("A Statue", actionables={"examine": examine})
+
+    def get_id(self):
+        return self.core.get_id()
 
     def examine(self):
         self.core.execute_actionable("examine")
@@ -178,114 +238,89 @@ class Bed:
         return "A Bed"
 
 
-class Door:
-    def __init__(self, id, message):
-        examine = Examinable(message)
-        self.core = GameObject(id, actionables={"examine": examine})
+def optionBox(gameObject, *params):
+    actions = {}
+    string_actions = []
+    open_box = True
 
-    def examine(self):
-        self.core.execute_actionable("examine")
+    if gameObject.core.has_actionable("examine"):
+        string_actions.append(f"EXAMINE {gameObject.get_id()}")
+        actions[len(actions)] = {
+            "method": lambda: gameObject.core.execute_actionable("examine")
+        }
+    if gameObject.core.has_actionable("open"):
+        string_actions.append(f"OPEN {gameObject.core.get_id()}")
+        actions[len(actions)] = {
+            "method": lambda: gameObject.core.execute_actionable("open", params),
+        }
+    string_actions.append("CLOSE OPTION BOX")
 
-    def __str__(self):
-        return self.core.get_id()
+    def close_box():
+        nonlocal open_box
+        open_box = False
 
-class Desk:
-    def __init__(self):
-        examinable = Examinable("A Desk")  # Assign to variable
-        openable = Openable([Note(), Bed()])
-        self.core = GameObject("Desk", actionables={"examine": examinable, "open": openable})
+    actions[len(actions)] = {"method": close_box}
 
-    def get_id(self):
-        return self.core.get_id()
-
-    def examine(self):
-        self.core.execute_actionable("examine")
-
-    def open(self, player):
-        self.core.execute_actionable("open", player, self.get_id())
+    while open_box:
+        stringformatter(string_actions)
+        user_choice = clicksimulator(1, len(string_actions))
+        actions[user_choice - 1]["method"]()
 
 
-class Bedroom:
+class Courtyard:
     def __init__(self, player=None):
-        self.signaler = Signaler()
+        self.signaler = Signaler(False)
 
         # Clean up the description (single instance, not repeated)
-        description = (
-            "It is night when you wake up, surrounded by sweaty cotton sheets.\n"
-            "The moonlight softly caresses the air that touches only the skin of your legs, "
-            "leaving the rest drowning in darkness."
-        )
+        description = """\nIt is night when you arrive at La Antigua Manor.\n
+The estate looms large in the darkness—a bloated mansion adorned with cheap replicas of Greek statues,desperate in their attempt to mimic a culture once held as superior. But there is no grandeur here—only sad theater, reaching for weakness as though it were strength; the abandonment of something richer in favor of illusions that cling to the air like mildew.
+
+The manor has clearly seen better days. Nature has begun its slow reclamation: vines crawl over the stucco like veins on a dying man; animals nest in its bones, as if they sensed the rot long before any human dared to admit it.
+
+Shattered windows and crooked doors gape like open sores. The air is thick with the scent of damp wood, rust, and something older—something sweet and spoiled. This is no home—only the carcass of a titan, long dead, now left to decompose beneath the crushing weight of its own pretense.\n"""
+
         examinable = Examinable(description)
-        self.core = GameObject("Bedroom", actionables={"examine": examinable})
+        self.core = GameObject("Courtyard", actionables={"examine": examinable})
         self.player = player  # Save player reference here for usage in run()
+        self.has_introduced = False
 
         # Storage can contain furniture objects like Desk, Bed
-        self.storage = Storageable([Desk(), Bed()]) # Assuming a Bed class exists
+        self.storage = Storageable([Statue()])  # Assuming a Bed class exists
 
     def examine(self):
         self.core.execute_actionable("examine")
-
-    def open_desk(self, player):
-        # Find Desk in storage and open it
-        for obj in self.storage.get_inventory():
-            if isinstance(obj, Desk):
-                obj.open(player)
-
-    def examine_desk(self):
-        for obj in self.storage.get_inventory():
-            if isinstance(obj, Desk):
-                obj.examine()
-
-    def examine_bed(self):
-        for obj in self.storage.get_inventory():
-            if isinstance(obj, Bed):
-                obj.examine()
 
     def run(self, player=None):
         if not player:
-            print("ERROR: Scene", getattr(self.core, "id", "Unknown"), "requires a player instance.")
+            print(
+                "ERROR: Scene",
+                getattr(self.core, "id", "Unknown"),
+                "requires a player instance.",
+            )
             return
 
-        self.examine()
-        print("What do you do?")
-        stringformatter(["Leave the bed"])
-        user_response = clicksimulator(1, 1, "")
+        actions = []
+        inventory = self.storage.get_inventory()
 
-        while True:
-            print("You left your bed. As you do, you consider what you could do next.")
-            print("Your eyes have adapted to the darkness and you can see sections"
-                  " of your room you couldn't see before. Including a desk lying in the corner and a door. The walls are bare.")
-            print("What do you do next?")
-            stringformatter(["Examine the Desk", "Examine the Bed", "Examine Room", "Leave the Room"])
-            user_response = clicksimulator(1, 4, "")
+        for item in inventory:
+            actions.append(f"APPROACH {item.get_id()}")
 
-            if user_response == 1:
-                while True:
-                    print("You approach the Desk.")
-                    print("What do you want to do?")
-                    stringformatter(["Open", "Examine", "Leave"])
-                    desk_action = clicksimulator(1, 3, "Not an option.")
+        if self.has_introduced:
+            new_description = """The courtyard is overrun with wild weeds, haunted by unsettling statues, and steeped in memories best left buried."""
+            examinable = self.core.get_actionable("examine")
+            if not isinstance(examinable, Examinable):
+                raise TypeError("Unknown Examinable")
+            examinable.set_message(new_description)
+            self.examine()  # Show updated message on revisit
+        else:
+            self.examine()
+            self.has_introduced = True
 
-                    if desk_action == 1:
-                        self.open_desk(player)
-                    elif desk_action == 2:
-                        self.examine_desk()
-                    elif desk_action == 3:
-                        break
-
-            elif user_response == 2:
-                print("You approach the Bed.")
-                self.examine_bed()
-
-            elif user_response == 3:
-                print("You examine the Room.")
-                self.examine()
-
-            elif user_response == 4:
-                break
+        stringformatter(actions)
+        user_next = clicksimulator(1, len(actions))
+        optionBox(inventory[user_next - 1])  # Use -1 for 1-based input
 
         self.signaler.set_signaler(True)
-
 
 
 class MainMenu:
@@ -341,12 +376,12 @@ class MainMenu:
 player_placement = 0
 user = None
 running = True
-places = [MainMenu(), Bedroom()]
+places = [MainMenu(), Courtyard()]
 
 while running:
     current_scene = places[player_placement]
     current_scene.run(user)
-    if current_scene.signaler.next:
+    if current_scene.signaler.get_signal():
         player_placement += 1
         if player_placement >= len(places):
             running = False

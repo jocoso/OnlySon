@@ -46,28 +46,45 @@ def clicksimulator(min_choice, max_choice, error_msg="Invalid choice."):
 # Actionables
 
 
+class Storageable:
+    def __init__(self, inventory=None):
+        if inventory is None:
+            inventory = []
+        self.inventory = inventory
+
+    def get_inventory(self):
+        return self.inventory
+
+    def set_inventory(self, new_inventory):
+        self.inventory = new_inventory
+
+
 class Openable:
     """
     Adds the ability for an object to 'open' and allows items to be retrieved.
     """
 
     def __init__(self, takeable_items):
-        self.takeable_items = takeable_items
+        self.storageable = Storageable(takeable_items)
 
     def exec(self, player, obj_name):
         print(f"Inside {obj_name}, you can see:")
-        if self.takeable_items:
-            stringformatter(self.takeable_items)
+
+        inventory = self.storageable.get_inventory()
+
+        if inventory:
+            stringformatter(inventory)
             print("What would you like to take?")
-            pick = get_choice(1, len(self.takeable_items), "You can't take that.")
-            if 1 <= pick <= len(self.takeable_items):
-                item_taken = self.takeable_items.pop(pick - 1)
+            pick = get_choice(1, len(inventory), "You can't take that.")
+            if 1 <= pick <= len(inventory):
+                item_taken = inventory.pop(pick - 1)
                 # Use id or str representation for display
                 item_name = getattr(item_taken.core, "id", str(item_taken))
                 print(f"You took {item_name}")
-                inventory = player.get_inventory()
-                inventory.append(item_taken)
-                player.set_inventory(inventory)
+                player_inventory = player.get_inventory()
+                player_inventory.append(item_taken)
+                player.set_inventory(player_inventory)
+                self.storageable.set_inventory(inventory)
                 return item_taken
         else:
             print("There is nothing inside.")
@@ -174,19 +191,6 @@ class GameObject:
         return name in self.actionables
 
 
-class Storageable:
-    def __init__(self, inventory=None):
-        if inventory is None:
-            inventory = []
-        self.inventory = inventory
-
-    def get_inventory(self):
-        return self.inventory
-
-    def set_inventory(self, new_inventory):
-        self.inventory = new_inventory
-
-
 class Player:
     def __init__(self, obj_id, init_items=None):
         if init_items is None:
@@ -228,14 +232,22 @@ class Statue:
         examine = Examinable("The ivory statues loom over you with impassive faces.")
         self.core = GameObject("A Statue", actionables={"examine": examine})
 
-    def get_id(self):
-        return self.core.get_id()
-
-    def examine(self):
-        self.core.execute_actionable("examine")
-
     def __str__(self):
         return "A Bed"
+
+
+class DeadTree:
+    def __init__(self):
+        examinable = Examinable(
+            "The tree is dead, but you notice a crevice in it. There's something inside."
+        )
+        openable = Openable([Note()])
+        self.core = GameObject(
+            "A Dead Tree", actionables={"examine": examinable, "open": openable}
+        )
+
+    def __str__(self):
+        return "A Dead Tree"
 
 
 def optionBox(gameObject, *params):
@@ -244,14 +256,14 @@ def optionBox(gameObject, *params):
     open_box = True
 
     if gameObject.core.has_actionable("examine"):
-        string_actions.append(f"EXAMINE {gameObject.get_id()}")
+        string_actions.append(f"EXAMINE {gameObject.core.get_id()}")
         actions[len(actions)] = {
             "method": lambda: gameObject.core.execute_actionable("examine")
         }
     if gameObject.core.has_actionable("open"):
         string_actions.append(f"OPEN {gameObject.core.get_id()}")
         actions[len(actions)] = {
-            "method": lambda: gameObject.core.execute_actionable("open", params),
+            "method": lambda: gameObject.core.execute_actionable("open", *params),
         }
     string_actions.append("CLOSE OPTION BOX")
 
@@ -285,7 +297,9 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
         self.has_introduced = False
 
         # Storage can contain furniture objects like Desk, Bed
-        self.storage = Storageable([Statue()])  # Assuming a Bed class exists
+        self.storage = Storageable(
+            [Statue(), DeadTree()]
+        )  # Assuming a Bed class exists
 
     def examine(self):
         self.core.execute_actionable("examine")
@@ -303,7 +317,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
         inventory = self.storage.get_inventory()
 
         for item in inventory:
-            actions.append(f"APPROACH {item.get_id()}")
+            actions.append(f"APPROACH {item.core.get_id()}")
 
         if self.has_introduced:
             new_description = """The courtyard is overrun with wild weeds, haunted by unsettling statues, and steeped in memories best left buried."""
@@ -318,7 +332,9 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
 
         stringformatter(actions)
         user_next = clicksimulator(1, len(actions))
-        optionBox(inventory[user_next - 1])  # Use -1 for 1-based input
+        optionBox(
+            inventory[user_next - 1], player, inventory[user_next - 1].core.get_id()
+        )  # Use -1 for 1-based input
 
         self.signaler.set_signaler(True)
 

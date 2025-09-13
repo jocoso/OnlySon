@@ -16,13 +16,17 @@ def get_choice(
     Prompts user for input within a specified range and returns the selected option as an integer.
     """
     while True:
+
+        choice = input(caret).strip().lower()
+        if choice == "esc":
+            return "esc"
         try:
-            choice = int(input(caret))
-            if range_min <= choice <= range_max:
-                return choice
+            c = int(choice)
+            if range_min <= c <= range_max:
+                return c
             print(error_msg)
         except ValueError:
-            print("Please enter a valid number.")
+            print("Please enter a valid number or type 'esc' to return to main menu.")
 
 
 # Simple replacements for missing stringformatter and clicksimulator
@@ -276,10 +280,12 @@ def optionBox(gameObject, *params):
     while open_box:
         stringformatter(string_actions)
         user_choice = clicksimulator(1, len(string_actions))
+        if user_choice == "esc":
+            break
         actions[user_choice - 1]["method"]()
 
 
-class Courtyard:
+class CourtyardSouth:
     def __init__(self, player=None):
         self.signaler = Signaler(False)
 
@@ -292,7 +298,7 @@ The manor has clearly seen better days. Nature has begun its slow reclamation: v
 Shattered windows and crooked doors gape like open sores. The air is thick with the scent of damp wood, rust, and something older—something sweet and spoiled. This is no home—only the carcass of a titan, long dead, now left to decompose beneath the crushing weight of its own pretense.\n"""
 
         examinable = Examinable(description)
-        self.core = GameObject("Courtyard", actionables={"examine": examinable})
+        self.core = GameObject("Courtyard South", actionables={"examine": examinable})
         self.player = player  # Save player reference here for usage in run()
         self.has_introduced = False
 
@@ -311,7 +317,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
                 getattr(self.core, "id", "Unknown"),
                 "requires a player instance.",
             )
-            return
+            return -1
 
         actions = []
         inventory = self.storage.get_inventory()
@@ -320,7 +326,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
             actions.append(f"APPROACH {item.core.get_id()}")
 
         if self.has_introduced:
-            new_description = """The courtyard is overrun with wild weeds, haunted by unsettling statues, and steeped in memories best left buried."""
+            new_description = """The end of the courtyard is overrun with wild weeds, haunted by unsettling statues, and steeped in memories best left buried."""
             examinable = self.core.get_actionable("examine")
             if not isinstance(examinable, Examinable):
                 raise TypeError("Unknown Examinable")
@@ -332,36 +338,43 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
 
         stringformatter(actions)
         user_next = clicksimulator(1, len(actions))
+        if user_next == "esc":
+            # return to main menu
+            return
         optionBox(
             inventory[user_next - 1], player, inventory[user_next - 1].core.get_id()
         )  # Use -1 for 1-based input
 
         self.signaler.set_signaler(True)
+        return 0
 
 
 class MainMenu:
     def __init__(self):
         self.signaler = Signaler(False)
+        self.player = None
 
-    def run(self, player=None):
-        global user, running
+    def run(self):
+        global running
         while True:
             print("== Main Menu ==")
             stringformatter(["New user", "Login", "Quit"])
-            choice = input("> ")
+            choice = input("> ").strip().lower()
             if choice == "1":
-                user = self.create_player()
-                if user:
+                self.player = self.create_player()
+                if self.player:
                     self.signaler.next = True
                     return
             elif choice == "2":
-                user = self.login()
-                if user:
+                self.player = self.login()
+                if self.player:
                     self.signaler.next = True
                     return
             elif choice == "3":
-                running = False
+                self.signaler.next = False
                 return
+            elif choice == "esc":
+                print("Already at main menu.")
             else:
                 print("Invalid selection. Try again.")
 
@@ -370,9 +383,9 @@ class MainMenu:
         while True:
             player_id = input("Enter your player name: ").strip()
             if player_id:
-                new_player = Player(player_id, init_items=[])
+                self.player = Player(player_id, init_items=[])
                 print(f"Player '{player_id}' created successfully.")
-                return new_player
+                return self.player
             else:
                 print("Player name cannot be empty. Please enter a valid name.")
 
@@ -381,23 +394,60 @@ class MainMenu:
         while True:
             player_id = input("Enter your player name: ").strip()
             if player_id:
-                existing_player = Player(player_id, init_items=[])
+                self.player = Player(player_id, init_items=[])
                 print(f"Welcome back, {player_id}.")
-                return existing_player
+                return self.player
             else:
                 print("Player name cannot be empty. Please enter a valid name.")
 
 
-# Global variables and game loop setup
-player_placement = 0
-user = None
-running = True
-places = [MainMenu(), Courtyard()]
+class Scene:
+    def __init__(self, places):
 
-while running:
-    current_scene = places[player_placement]
-    current_scene.run(user)
-    if current_scene.signaler.get_signal():
-        player_placement += 1
-        if player_placement >= len(places):
-            running = False
+        # Global variables and game loop setup
+        self.player_placement = 0
+        self.running = True
+        self.places = places
+        self.current_scene = None
+
+    def play(self, user):
+        while self.running and self.player_placement < len(self.places):
+            next_idx = self.places[self.player_placement].run(user)
+
+            if next_idx is None or next_idx < 0 or next_idx >= len(self.places):
+                self.running = False
+                break
+            else:
+                self.player_placement = next_idx
+
+
+class ScenePlayer:
+    def __init__(self, menu, scene_manager):
+        self.menu = menu
+        self.player_placement = 0
+        self.scene_manager = scene_manager
+        self.running = True
+
+    def play_mainmenu(self):
+        self.menu.run()
+
+    def play_game(self):
+        self.scene_manager.play(self.menu.player)
+
+    def play(self):
+        while self.running:
+            self.play_mainmenu()
+            if self.menu.signaler.get_signal():
+                self.play_game()
+            else:
+                self.running = False
+
+
+courtyard = [CourtyardSouth()]
+scene_manager = Scene(courtyard)
+menu = MainMenu()
+player = ScenePlayer(menu, scene_manager)
+try:
+    player.play()
+except KeyboardInterrupt:
+    print("\nGame interrupted. Exiting...")

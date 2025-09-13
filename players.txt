@@ -1,2 +1,0 @@
-amanda boss witch 100 1150 100 1 0
-dona tello vampire 200 1000 150 1 0

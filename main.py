@@ -189,56 +189,103 @@ class Door:
     def __str__(self):
         return self.core.get_id()
 
+class Desk:
+    def __init__(self):
+        examinable = Examinable("A Desk")  # Assign to variable
+        openable = Openable([Note(), Bed()])
+        self.core = GameObject("Desk", actionables={"examine": examinable, "open": openable})
 
-class Bedroom:
-    def __init__(self, player=None):
-        self.signaler = Signaler()
-        examinable = Examinable("The Desk is Beautiful")
-        openable = Openable([Note()])
-        self.core = GameObject("Bedroom", actionables={"examine": examinable, "open": openable})
-        self.player = player  # Save player reference here for usage in run()
+    def get_id(self):
+        return self.core.get_id()
 
     def examine(self):
         self.core.execute_actionable("examine")
 
-    def openable(self, player, obj_name):
-        self.core.execute_actionable("open", player, obj_name)
+    def open(self, player):
+        self.core.execute_actionable("open", player, self.get_id())
+
+
+class Bedroom:
+    def __init__(self, player=None):
+        self.signaler = Signaler()
+
+        # Clean up the description (single instance, not repeated)
+        description = (
+            "It is night when you wake up, surrounded by sweaty cotton sheets.\n"
+            "The moonlight softly caresses the air that touches only the skin of your legs, "
+            "leaving the rest drowning in darkness."
+        )
+        examinable = Examinable(description)
+        self.core = GameObject("Bedroom", actionables={"examine": examinable})
+        self.player = player  # Save player reference here for usage in run()
+
+        # Storage can contain furniture objects like Desk, Bed
+        self.storage = Storageable([Desk(), Bed()]) # Assuming a Bed class exists
+
+    def examine(self):
+        self.core.execute_actionable("examine")
+
+    def open_desk(self, player):
+        # Find Desk in storage and open it
+        for obj in self.storage.get_inventory():
+            if isinstance(obj, Desk):
+                obj.open(player)
+
+    def examine_desk(self):
+        for obj in self.storage.get_inventory():
+            if isinstance(obj, Desk):
+                obj.examine()
+
+    def examine_bed(self):
+        for obj in self.storage.get_inventory():
+            if isinstance(obj, Bed):
+                obj.examine()
 
     def run(self, player=None):
         if not player:
             print("ERROR: Scene", getattr(self.core, "id", "Unknown"), "requires a player instance.")
             return
 
-        print("It is night when you wake up, surrounded by sweaty cotton sheets.")
-        print("The moonlight softly caresses the air that touches only the skin of your legs, leaving the rest drowning in darkness.")
+        self.examine()
         print("What do you do?")
         stringformatter(["Leave the bed"])
         user_response = clicksimulator(1, 1, "")
 
         while True:
-            print("You left your bed. As you do, you consider what could you do next.")
-            print("Your eyes have adapted to the darkness and you can see sections")
-            print("of your room you couldn't see before. Including a desk lying in the corner and a door. The walls are bare.")
+            print("You left your bed. As you do, you consider what you could do next.")
+            print("Your eyes have adapted to the darkness and you can see sections"
+                  " of your room you couldn't see before. Including a desk lying in the corner and a door. The walls are bare.")
             print("What do you do next?")
-            stringformatter(["Examine the Desk", "Leave the Room"])
-            user_response = clicksimulator(1, 2, "")
+            stringformatter(["Examine the Desk", "Examine the Bed", "Examine Room", "Leave the Room"])
+            user_response = clicksimulator(1, 4, "")
 
             if user_response == 1:
                 while True:
                     print("You approach the Desk.")
                     print("What do you want to do?")
-                    stringformatter(["Open", "Leave"])
-                    desk_action = clicksimulator(1, 2, "Not an option.")
+                    stringformatter(["Open", "Examine", "Leave"])
+                    desk_action = clicksimulator(1, 3, "Not an option.")
 
                     if desk_action == 1:
-                        self.openable(player, "Desk")
+                        self.open_desk(player)
                     elif desk_action == 2:
+                        self.examine_desk()
+                    elif desk_action == 3:
                         break
 
             elif user_response == 2:
+                print("You approach the Bed.")
+                self.examine_bed()
+
+            elif user_response == 3:
+                print("You examine the Room.")
+                self.examine()
+
+            elif user_response == 4:
                 break
 
         self.signaler.set_signaler(True)
+
 
 
 class MainMenu:

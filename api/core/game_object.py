@@ -21,6 +21,9 @@ class GameObject:
         """Return the unique ID of the game object."""
         return self.id
 
+    def get_name(self):
+        return self.name
+
     def execute_actionable(self, name, *params):
         """
         Execute the named actionable if it exists and has an exec method.

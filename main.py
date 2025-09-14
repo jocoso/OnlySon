@@ -5,43 +5,6 @@ from api.core.game_object import GameObject
 from src.xml.parsed_objects import parsed_object
 
 
-class Note:
-    def __init__(self):
-        examine = Examinable(
-            "The note is so old you fear looking at it will make it turn to dust."
-        )
-        self.core = GameObject("A Weary Note", actionables={"examine": examine})
-
-    def examine(self):
-        self.core.execute_actionable("examine")
-
-    def __str__(self):
-        return "A Weary Note"
-
-
-class Statue:
-    def __init__(self):
-        examine = Examinable("The ivory statues loom over you with impassive faces.")
-        self.core = GameObject("A Statue", actionables={"examine": examine})
-
-    def __str__(self):
-        return "A Bed"
-
-
-class DeadTree:
-    def __init__(self):
-        examinable = Examinable(
-            "The tree is dead, but you notice a crevice in it. There's something inside."
-        )
-        openable = Openable([Note()])
-        self.core = GameObject(
-            "A Dead Tree", actionables={"examine": examinable, "open": openable}
-        )
-
-    def __str__(self):
-        return "A Dead Tree"
-
-
 class CourtyardSouth:
     def __init__(self, player=None):
         self.signaler = Signaler(False)
@@ -55,12 +18,17 @@ The manor has clearly seen better days. Nature has begun its slow reclamation: v
 Shattered windows and crooked doors gape like open sores. The air is thick with the scent of damp wood, rust, and something older—something sweet and spoiled. This is no home—only the carcass of a titan, long dead, now left to decompose beneath the crushing weight of its own pretense.\n"""
 
         examinable = Examinable(description)
-        self.core = GameObject("Courtyard South", actionables={"examine": examinable})
+        self.core = GameObject(
+            "0x21", "Courtyard South", actionables={"examine": examinable}
+        )
         self.player = player  # Save player reference here for usage in run()
         self.has_introduced = False
 
+        items = [parsed_object.get(id) for id in ["0x33", "0x34"]]
+        items = [item for item in items if item is not None]
+
         # Storage can contain furniture objects like Desk, Bed
-        self.storage = Storageable(parsed_object)  # Assuming a Bed class exists
+        self.storage = Storageable(items)  # Assuming a Bed class exists
 
     def examine(self):
         self.core.execute_actionable("examine")
@@ -147,9 +115,10 @@ class MainMenu:
     def login(self):
         print("Login")
         while True:
-            player_id = input("Enter your player name: ").strip()
+            player_id = "0x11"
+            player_name = input("Enter your player name: ").strip()
             if player_id:
-                self.player = Player(player_id, init_items=[])
+                self.player = Player(player_id, player_name, init_items=[])
                 print(f"Welcome back, {player_id}.")
                 return self.player
             else:

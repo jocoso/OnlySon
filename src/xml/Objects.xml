@@ -20,4 +20,15 @@
             </Examinable>
         </Actionables>
     </GameObject>
+    <GameObject id="0x34" name="Dead Tree">
+        <Actionables>
+            <Examinable>
+                <Message>A dead tree, you can see a strange crevice holding some papers inside.</Message>
+            </Examinable>
+            <Openable>
+                <Item id="0x31"></Item>
+                <Item id="0x32"></Item>
+            </Openable>
+        </Actionables>
+    </GameObject>
 </GameObjects>

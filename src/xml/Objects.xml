@@ -1,0 +1,23 @@
+<GameObjects>
+    <GameObject id="0x31" name="Mother's Note">
+        <Actionables>
+            <Examinable>
+                <Message>The note is so old you fear looking at it will make it turn to dust.</Message>
+            </Examinable>
+        </Actionables>
+    </GameObject>
+    <GameObject id="0x32" name="Father's Note">
+        <Actionables>
+            <Examinable>
+                <Message>The note was forgotten by their writter.</Message>
+            </Examinable>
+        </Actionables>
+    </GameObject>
+    <GameObject id="0x33" name="Statue of Venus">
+        <Actionables>
+            <Examinable>
+                <Message>Cheap ivory looking down at you with disdain.</Message>
+            </Examinable>
+        </Actionables>
+    </GameObject>
+</GameObjects>

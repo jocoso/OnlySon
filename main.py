@@ -1,220 +1,8 @@
-# Helper Functions
-
-
-def format_list(items):
-    """
-    Formats a list of objects as a cohesive, comma-separated string.
-    Example: ['apple', 'banana', 'cherry'] -> 'apple, banana, cherry'
-    """
-    return ", ".join(str(item) for item in items)
-
-
-def get_choice(
-    range_min, range_max, error_msg="You can't pick this option.", caret="> "
-):
-    """
-    Prompts user for input within a specified range and returns the selected option as an integer.
-    """
-    while True:
-
-        choice = input(caret).strip().lower()
-        if choice == "esc":
-            return "esc"
-        try:
-            c = int(choice)
-            if range_min <= c <= range_max:
-                return c
-            print(error_msg)
-        except ValueError:
-            print("Please enter a valid number or type 'esc' to return to main menu.")
-
-
-# Simple replacements for missing stringformatter and clicksimulator
-
-
-def stringformatter(options):
-    """
-    Displays numbered option list to the player.
-    """
-    for idx, option in enumerate(options, start=1):
-        print(f"{idx}. {option}")
-
-
-def clicksimulator(min_choice, max_choice, error_msg="Invalid choice."):
-    """
-    Simulated input choice with validation.
-    """
-    return get_choice(min_choice, max_choice, error_msg)
-
-
-# Actionables
-
-
-class Storageable:
-    def __init__(self, inventory=None):
-        if inventory is None:
-            inventory = []
-        self.inventory = inventory
-
-    def get_inventory(self):
-        return self.inventory
-
-    def set_inventory(self, new_inventory):
-        self.inventory = new_inventory
-
-
-class Openable:
-    """
-    Adds the ability for an object to 'open' and allows items to be retrieved.
-    """
-
-    def __init__(self, takeable_items):
-        self.storageable = Storageable(takeable_items)
-
-    def exec(self, player, obj_name):
-        print(f"Inside {obj_name}, you can see:")
-
-        inventory = self.storageable.get_inventory()
-
-        if inventory:
-            stringformatter(inventory)
-            print("What would you like to take?")
-            pick = get_choice(1, len(inventory), "You can't take that.")
-            if 1 <= pick <= len(inventory):
-                item_taken = inventory.pop(pick - 1)
-                # Use id or str representation for display
-                item_name = getattr(item_taken.core, "id", str(item_taken))
-                print(f"You took {item_name}")
-                player_inventory = player.get_inventory()
-                player_inventory.append(item_taken)
-                player.set_inventory(player_inventory)
-                self.storageable.set_inventory(inventory)
-                return item_taken
-        else:
-            print("There is nothing inside.")
-        return None
-
-
-class Examinable:
-    """
-    Adds the ability for an object to be examined and display a descriptive message.
-    """
-
-    def __init__(self, message):
-        self.message = message
-
-    def set_message(self, new_message):
-        self.message = new_message
-
-    def exec(self):
-        print(self.message)
-
-
-class Signaler:
-    """
-    A class to represent a boolean signal.
-    """
-
-    def __init__(self, sign=False):
-        self.sign = sign
-
-    def set_signaler(self, sign):
-        self.sign = sign
-
-    def get_signal(self):
-        return self.sign
-
-    # Provide property next to match usage
-    @property
-    def next(self):
-        return self.sign
-
-    @next.setter
-    def next(self, value):
-        self.sign = value
-
-
-class GameObject:
-    """
-    Basic game object capable of executing named actionables such as Openable and Examinable.
-
-    Attributes:
-        id (str): Unique identifier for the game object.
-        actionables (dict): Dictionary mapping action names to actionable objects.
-
-    Methods:
-        get_id(): Returns the unique ID of the game object.
-        execute_actionable(name, *params): Executes the specified actionable if available.
-        has_actionable(name): Checks if the given actionable is available.
-    """
-
-    def __init__(self, obj_id, actionables=None):
-        self.id = obj_id
-        self.actionables = actionables or {}
-
-    def get_id(self):
-        """Return the unique ID of the game object."""
-        return self.id
-
-    def execute_actionable(self, name, *params):
-        """
-        Execute the named actionable if it exists and has an exec method.
-
-        Args:
-            name (str): Name of the actionable to execute.
-            *params: Parameters to pass to the actionable's exec method.
-
-        Returns:
-            Any: The return value of the actionable's exec method, if called.
-        """
-        actionable = self.actionables.get(name)
-        if actionable and callable(getattr(actionable, "exec", None)):
-            return actionable.exec(*params)
-
-    def get_actionable(self, name):
-        """
-        Retrieve an actionable object by its name.
-        Args:
-            name (str): The name of the actionable.
-
-        Returns:
-            The actionable object if found, else None.
-        """
-        return self.actionables.get(name)
-
-    def has_actionable(self, name):
-        """
-        Check if the game object has the specified actionable.
-
-        Args:
-            name (str): Name of the actionable.
-
-        Returns:
-            bool: True if the actionable exists, False otherwise.
-        """
-        return name in self.actionables
-
-
-class Player:
-    def __init__(self, obj_id, init_items=None):
-        if init_items is None:
-            init_items = []
-        examinable = Examinable("A Test Player")
-        self.core = GameObject(obj_id, actionables={"examine": examinable})
-
-        self.storage = Storageable(init_items)
-
-    def examine(self):
-        self.core.execute_actionable("examine")
-
-    def get_inventory(self):
-        return self.storage.get_inventory()
-
-    def set_inventory(self, new_inventory):
-        self.storage.set_inventory(new_inventory)
-
-    def __str__(self):
-        return f"Player({self.core.get_id()})"
+from api.helpers import stringformatter, clicksimulator, optionBox
+from api.actionables import Storageable, Openable, Examinable, Signaler
+from api.core.player import Player
+from api.core.game_object import GameObject
+from src.xml.parsed_objects import parsed_object
 
 
 class Note:
@@ -254,37 +42,6 @@ class DeadTree:
         return "A Dead Tree"
 
 
-def optionBox(gameObject, *params):
-    actions = {}
-    string_actions = []
-    open_box = True
-
-    if gameObject.core.has_actionable("examine"):
-        string_actions.append(f"EXAMINE {gameObject.core.get_id()}")
-        actions[len(actions)] = {
-            "method": lambda: gameObject.core.execute_actionable("examine")
-        }
-    if gameObject.core.has_actionable("open"):
-        string_actions.append(f"OPEN {gameObject.core.get_id()}")
-        actions[len(actions)] = {
-            "method": lambda: gameObject.core.execute_actionable("open", *params),
-        }
-    string_actions.append("CLOSE OPTION BOX")
-
-    def close_box():
-        nonlocal open_box
-        open_box = False
-
-    actions[len(actions)] = {"method": close_box}
-
-    while open_box:
-        stringformatter(string_actions)
-        user_choice = clicksimulator(1, len(string_actions))
-        if user_choice == "esc":
-            break
-        actions[user_choice - 1]["method"]()
-
-
 class CourtyardSouth:
     def __init__(self, player=None):
         self.signaler = Signaler(False)
@@ -303,9 +60,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
         self.has_introduced = False
 
         # Storage can contain furniture objects like Desk, Bed
-        self.storage = Storageable(
-            [Statue(), DeadTree()]
-        )  # Assuming a Bed class exists
+        self.storage = Storageable(parsed_object)  # Assuming a Bed class exists
 
     def examine(self):
         self.core.execute_actionable("examine")
@@ -323,7 +78,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
         inventory = self.storage.get_inventory()
 
         for item in inventory:
-            actions.append(f"APPROACH {item.core.get_id()}")
+            actions.append(f"APPROACH {item.get_name()}")
 
         if self.has_introduced:
             new_description = """The end of the courtyard is overrun with wild weeds, haunted by unsettling statues, and steeped in memories best left buried."""
@@ -342,7 +97,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
             # return to main menu
             return
         optionBox(
-            inventory[user_next - 1], player, inventory[user_next - 1].core.get_id()
+            inventory[user_next - 1], player, inventory[user_next - 1].get_name()
         )  # Use -1 for 1-based input
 
         self.signaler.set_signaler(True)

@@ -1,5 +1,6 @@
 # Helper Functions
 import xml.etree.ElementTree as ET
+from api.core.IO import IO
 
 
 def element_to_dict(elem):
@@ -30,9 +31,11 @@ def element_to_dict(elem):
 def parse_game_objects_to_dict(xml_string):
     from api.actionables import Examinable
     from api.core.game_object import GameObject
+    from api.core.IO import IO
 
     root = ET.fromstring(xml_string)
     game_objects_dict = {}
+    io = IO(0.07)
 
     for go_elem in root.findall("GameObject"):
         go_id = go_elem.get("id")
@@ -45,7 +48,7 @@ def parse_game_objects_to_dict(xml_string):
                 tag = actionable_node.tag
                 if tag == "Examinable":
                     message = actionable_node.find("Message").text
-                    actionables["examine"] = Examinable(message)
+                    actionables["examine"] = Examinable(message, io)
         game_objects_dict[go_id] = GameObject(go_id, go_name, actionables)
     return game_objects_dict
 
@@ -127,8 +130,9 @@ def stringformatter(options):
     """
     Displays numbered option list to the player.
     """
+    io = IO(0.07)
     for idx, option in enumerate(options, start=1):
-        print(f"{idx}. {option}")
+        io.type_print(f"{idx}. {option}")
 
 
 def clicksimulator(min_choice, max_choice, error_msg="Invalid choice."):

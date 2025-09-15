@@ -2,13 +2,14 @@ from api.helpers import stringformatter, clicksimulator, optionBox
 from api.actionables import Storageable, Openable, Examinable, Signaler
 from api.core.player import Player
 from api.core.game_object import GameObject
+from api.core.IO import IO
 from src.xml.parsed_objects import parsed_object
 
 
 class CourtyardSouth:
-    def __init__(self, player=None):
+    def __init__(self, io, player=None):
         self.signaler = Signaler(False)
-
+        self.io = io
         # Clean up the description (single instance, not repeated)
         description = """\nIt is night when you arrive at La Antigua Manor.\n
 The estate looms large in the darkness—a bloated mansion adorned with cheap replicas of Greek statues,desperate in their attempt to mimic a culture once held as superior. But there is no grandeur here—only sad theater, reaching for weakness as though it were strength; the abandonment of something richer in favor of illusions that cling to the air like mildew.
@@ -17,7 +18,7 @@ The manor has clearly seen better days. Nature has begun its slow reclamation: v
 
 Shattered windows and crooked doors gape like open sores. The air is thick with the scent of damp wood, rust, and something older—something sweet and spoiled. This is no home—only the carcass of a titan, long dead, now left to decompose beneath the crushing weight of its own pretense.\n"""
 
-        examinable = Examinable(description)
+        examinable = Examinable(description, self.io)
         self.core = GameObject(
             "0x21", "Courtyard South", actionables={"examine": examinable}
         )
@@ -73,14 +74,17 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
 
 
 class MainMenu:
-    def __init__(self):
+    def __init__(self, io):
         self.signaler = Signaler(False)
         self.player = None
+        self.io = io
 
     def run(self):
         global running
+        console = IO()
+
         while True:
-            print("== Main Menu ==")
+            console.type_print("== Main Menu ==")
             stringformatter(["New user", "Login", "Quit"])
             choice = input("> ").strip().lower()
             if choice == "1":
@@ -104,9 +108,10 @@ class MainMenu:
     def create_player(self):
         print("Create a new player")
         while True:
-            player_id = input("Enter your player name: ").strip()
+            player_name = input("Enter your player name: ").strip()
+            player_id = "0x11"
             if player_id:
-                self.player = Player(player_id, init_items=[])
+                self.player = Player(player_id, player_name, init_items=[])
                 print(f"Player '{player_id}' created successfully.")
                 return self.player
             else:
@@ -118,7 +123,7 @@ class MainMenu:
             player_id = "0x11"
             player_name = input("Enter your player name: ").strip()
             if player_id:
-                self.player = Player(player_id, player_name, init_items=[])
+                self.player = Player(player_id, player_name, self.io, init_items=[])
                 print(f"Welcome back, {player_id}.")
                 return self.player
             else:
@@ -167,9 +172,10 @@ class ScenePlayer:
                 self.running = False
 
 
-courtyard = [CourtyardSouth()]
+io = IO(0.01)
+courtyard = [CourtyardSouth(io)]
 scene_manager = Scene(courtyard)
-menu = MainMenu()
+menu = MainMenu(io)
 player = ScenePlayer(menu, scene_manager)
 try:
     player.play()

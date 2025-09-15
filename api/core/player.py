@@ -1,13 +1,14 @@
 class Player:
-    def __init__(self, obj_id, obj_name, init_items=None):
+    def __init__(self, obj_id, obj_name, io, init_items=None):
         from api.actionables import Storageable, Examinable
         from api.core.game_object import GameObject
+        from api.core.IO import IO
 
         if init_items is None:
             init_items = []
-        examinable = Examinable("A Test Player")
+        self.io = io
+        examinable = Examinable("A Test Player", self.io)
         self.core = GameObject(obj_id, obj_name, actionables={"examine": examinable})
-
         self.storage = Storageable(init_items)
 
     def examine(self):

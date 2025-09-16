@@ -13,10 +13,10 @@
             </Examinable>
         </Actionables>
     </GameObject>
-    <GameObject id="0x33" name="Statue of Venus">
+    <GameObject id="0x33" name="Paul's Body">
         <Actionables>
             <Examinable>
-                <Message>Cheap ivory looking down at you with disdain.</Message>
+                <Message>Before he died, like a grim omen, Paul told me he had a gift for me in the pocket of his jacket. I also need to take his dog tag—to send it to his family. To his wife.</Message>
             </Examinable>
         </Actionables>
     </GameObject>

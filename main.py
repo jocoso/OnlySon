@@ -7,16 +7,17 @@ from src.xml.parsed_objects import parsed_object
 
 
 class CourtyardSouth:
-    def __init__(self, player=None):
+    def __init__(self, name, player=None):
         self.signaler = Signaler(False)
         self.io = io
+        self.name = name
         # Clean up the description (single instance, not repeated)
-        description = """\nIt is night when you arrive at La Antigua Manor.\n
-The estate looms large in the darkness—a bloated mansion adorned with cheap replicas of Greek statues,desperate in their attempt to mimic a culture once held as superior. But there is no grandeur here—only sad theater, reaching for weakness as though it were strength; the abandonment of something richer in favor of illusions that cling to the air like mildew.
-
-The manor has clearly seen better days. Nature has begun its slow reclamation: vines crawl over the stucco like veins on a dying man; animals nest in its bones, as if they sensed the rot long before any human dared to admit it.
-
-Shattered windows and crooked doors gape like open sores. The air is thick with the scent of damp wood, rust, and something older—something sweet and spoiled. This is no home—only the carcass of a titan, long dead, now left to decompose beneath the crushing weight of its own pretense.\n"""
+        description = """\tI found his body pierced by an iron beam. 
+        Jet-black eyes gazing at the moon, as if searching for a reason. 
+        His dark hair, glossy with blood. I remembered how, just the night 
+        before, those same eyes had looked at me with warmth, and that hair 
+        had brushed gently against my face. His deep brown skin still carried 
+        his scent—a scent so unique it felt like a fingerprint."""
 
         examinable = Examinable(description)
         self.core = GameObject(
@@ -25,13 +26,14 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
         self.player = player  # Save player reference here for usage in run()
         self.has_introduced = False
 
-        items = [parsed_object.get(id) for id in ["0x33", "0x34"]]
+        items = [parsed_object.get(id) for id in ["0x33"]]
         items = [item for item in items if item is not None]
 
         # Storage can contain furniture objects like Desk, Bed
         self.storage = Storageable(items)  # Assuming a Bed class exists
 
     def examine(self):
+        self.io.type_print(f"[{self.name}]")
         self.io.type_print(self.core.execute_actionable("examine"))
 
     def run(self, player=None):
@@ -50,7 +52,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
             actions.append(f"APPROACH {item.get_name()}")
 
         if self.has_introduced:
-            new_description = """The end of the courtyard is overrun with wild weeds, haunted by unsettling statues, and steeped in memories best left buried."""
+            new_description = """I can't tear my gaze from his broken form. Everything else fades away."""
             examinable = self.core.get_actionable("examine")
             if not isinstance(examinable, Examinable):
                 raise TypeError("Unknown Examinable")
@@ -173,7 +175,7 @@ class ScenePlayer:
 
 
 io = IO(0.01)
-courtyard = [CourtyardSouth()]
+courtyard = [CourtyardSouth("Battlefield")]
 scene_manager = Scene(courtyard)
 menu = MainMenu(io)
 player = ScenePlayer(menu, scene_manager)

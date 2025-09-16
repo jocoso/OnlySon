@@ -7,7 +7,7 @@ from src.xml.parsed_objects import parsed_object
 
 
 class CourtyardSouth:
-    def __init__(self, io, player=None):
+    def __init__(self, player=None):
         self.signaler = Signaler(False)
         self.io = io
         # Clean up the description (single instance, not repeated)
@@ -18,7 +18,7 @@ The manor has clearly seen better days. Nature has begun its slow reclamation: v
 
 Shattered windows and crooked doors gape like open sores. The air is thick with the scent of damp wood, rust, and something older—something sweet and spoiled. This is no home—only the carcass of a titan, long dead, now left to decompose beneath the crushing weight of its own pretense.\n"""
 
-        examinable = Examinable(description, self.io)
+        examinable = Examinable(description)
         self.core = GameObject(
             "0x21", "Courtyard South", actionables={"examine": examinable}
         )
@@ -32,7 +32,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
         self.storage = Storageable(items)  # Assuming a Bed class exists
 
     def examine(self):
-        self.core.execute_actionable("examine")
+        self.io.type_print(self.core.execute_actionable("examine"))
 
     def run(self, player=None):
         if not player:
@@ -66,7 +66,7 @@ Shattered windows and crooked doors gape like open sores. The air is thick with 
             # return to main menu
             return
         optionBox(
-            inventory[user_next - 1], player, inventory[user_next - 1].get_name()
+            inventory[user_next - 1], io, player, inventory[user_next - 1].get_name()
         )  # Use -1 for 1-based input
 
         self.signaler.set_signaler(True)
@@ -123,7 +123,7 @@ class MainMenu:
             player_id = "0x11"
             player_name = input("Enter your player name: ").strip()
             if player_id:
-                self.player = Player(player_id, player_name, self.io, init_items=[])
+                self.player = Player(player_id, player_name, init_items=[])
                 print(f"Welcome back, {player_id}.")
                 return self.player
             else:
@@ -173,7 +173,7 @@ class ScenePlayer:
 
 
 io = IO(0.01)
-courtyard = [CourtyardSouth(io)]
+courtyard = [CourtyardSouth()]
 scene_manager = Scene(courtyard)
 menu = MainMenu(io)
 player = ScenePlayer(menu, scene_manager)

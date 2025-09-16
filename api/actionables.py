@@ -54,15 +54,14 @@ class Examinable:
     Adds the ability for an object to be examined and display a descriptive message.
     """
 
-    def __init__(self, message, io):
+    def __init__(self, message):
         self.message = message
-        self.io = io
 
     def set_message(self, new_message):
         self.message = new_message
 
     def exec(self):
-        self.io.type_print(self.message)
+        return self.message
 
 
 class Signaler:

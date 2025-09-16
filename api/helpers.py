@@ -48,7 +48,7 @@ def parse_game_objects_to_dict(xml_string):
                 tag = actionable_node.tag
                 if tag == "Examinable":
                     message = actionable_node.find("Message").text
-                    actionables["examine"] = Examinable(message, io)
+                    actionables["examine"] = Examinable(message)
         game_objects_dict[go_id] = GameObject(go_id, go_name, actionables)
     return game_objects_dict
 
@@ -130,7 +130,7 @@ def stringformatter(options):
     """
     Displays numbered option list to the player.
     """
-    io = IO(0.07)
+    io = IO(0.02)
     for idx, option in enumerate(options, start=1):
         io.type_print(f"{idx}. {option}")
 
@@ -139,10 +139,20 @@ def clicksimulator(min_choice, max_choice, error_msg="Invalid choice."):
     """
     Simulated input choice with validation.
     """
-    return get_choice(min_choice, max_choice, error_msg)
+    while True:
+        choice = input(">").strip().lower()
+        if choice == "esc":
+            return "esc"
+        try:
+            c = int(choice)
+            if min_choice <= c <= max_choice:
+                return c
+            print("Incalid choice.")
+        except ValueError:
+            print("Enter a valid number or esc to quit.")
 
 
-def optionBox(gameObject, *params):
+def optionBox(gameObject, io, *params):
     actions = {}
     string_actions = []
     open_box = True
@@ -150,12 +160,12 @@ def optionBox(gameObject, *params):
     if gameObject.has_actionable("examine"):
         string_actions.append(f"EXAMINE {gameObject.get_name()}")
         actions[len(actions)] = {
-            "method": lambda: gameObject.execute_actionable("examine")
+            "method": lambda: io.type_print(gameObject.execute_actionable("examine"))
         }
     if gameObject.has_actionable("open"):
         string_actions.append(f"OPEN {gameObject.core.get_name()}")
         actions[len(actions)] = {
-            "method": lambda: gameObject.core.execute_actionable("open", *params),
+            "method": lambda: gameObject.execute_actionable("open", *params),
         }
     string_actions.append("CLOSE OPTION BOX")
 
@@ -163,7 +173,7 @@ def optionBox(gameObject, *params):
         nonlocal open_box
         open_box = False
 
-    actions[len(actions)] = {"method": close_box}
+    actions[len(actions)] = {"method": lambda: close_box()}
 
     while open_box:
         stringformatter(string_actions)

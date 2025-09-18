@@ -2,37 +2,84 @@ import pygame
 import sys
 
 
+class Pen:
+    def __init__(
+        self,
+        caption,
+        color=(0, 0, 0),
+        bg_color=(255, 255, 255),
+        indentation=36,
+        size=(640, 480),
+        fps=60,
+    ):
+
+        self.color = color
+        self.bg_color = bg_color
+        self.indentation = indentation
+        self.paper = None
+        self.size = size
+        self.fps = fps
+        self.caption = caption
+
+    def init(self):
+        self.paper = Paper(self.size, self.fps, self.caption)
+        self.paper.init()
+
+    def print_title(self, text):
+        self.paper.print(text, self.indentation, self.color, x=self.indentation)
+
+    def read(self):
+        self.paper.read()
+
+
 class Paper:
-    def __init__(self, size_tuple, fps, caption):
-        self.size_tuple = size_tuple
+    def __init__(self, size, fps, caption):
+        self.size = size
         self.fps = fps
         self.caption = caption
         self.user_input = ""
-        self.buffer = ""
-        self.newlines = 0
+        self.buffer = []
+        self.black = (0, 0, 0)
 
     def init(self):
         pygame.init()
         pygame.display.set_caption(self.caption)
-        self.screen = pygame.display.set_mode(self.size_tuple)
+        self.screen = pygame.display.set_mode(self.size)
         self.clock = pygame.time.Clock()
         self.running = True
 
     def refresh(self):
-        self.screen.fill((255, 255, 255))
-
+        white = (255, 255, 255)
+        self.screen.fill(white)
+        text_size = 36
         line_height = 40
-        lines = self.buffer.split("\n")
 
-        for i, line in enumerate(lines):
-            y = 36 + i * line_height
-            self.draw_text(line, 36, (0, 0, 0), 36, y)
+        for i, objs in enumerate(self.buffer):
+            text_size = objs.get("size")
+            x = objs.get("x", 0)
+            y = text_size + i * line_height
+            self.draw_text(
+                objs.get("message"), text_size, objs.get("color", self.black), x, y
+            )
 
-        self.draw_text(self.user_input, 36, (0, 0, 0), 36, self.size_tuple[1] - 36)
+        self.draw_text(
+            self.user_input,
+            text_size,
+            self.black,
+            text_size,
+            self.size[1] - text_size,
+        )
         pygame.display.flip()
 
-    def print(self, text):
-        self.buffer = text
+    def print(self, text, text_size, text_color=None, x=0):
+        self.buffer.append(
+            {
+                "message": text,
+                "size": text_size,
+                "color": text_color or self.black,
+                "x": x,
+            }
+        )
 
     def get_buffer(self):
         return self.buffer
@@ -53,7 +100,13 @@ class Paper:
                 if event.type == pygame.KEYDOWN:
                     char = event.unicode
                     if event.key == pygame.K_RETURN:
-                        self.buffer += f"{self.user_input}\n"
+                        self.buffer.append(
+                            {
+                                "message": self.user_input,
+                                "size": 36,
+                                "color": self.black,
+                            }
+                        )
                         self.user_input = ""
                     elif event.key == pygame.K_BACKSPACE:
                         if len(self.user_input) > 0:

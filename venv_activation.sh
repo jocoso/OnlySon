@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VENV_DIR="venv"
+VENV_DIR="v"
 
 if [ "$1" = "on" ]; then
 	if [ -f "$VENV_DIR/bin/activate" ]; then
